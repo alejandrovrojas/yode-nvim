@@ -35,12 +35,9 @@ local createSeditor = function(opts)
     --vim.cmd("call neomake#log#debug('## after creating buffer " .. vim.fn.bufnr('%') .. "')")
     vim.bo[seditorBufferId].ft = vim.bo[fileBufferId].ft
     vim.bo[seditorBufferId].buftype = 'acwrite'
-    -- TODO workaround! it seems this isn't set by my editorconfig plugin for
-    -- these buffers. seditors get inserted instead of spaces in seditors. In
-    -- normal file buffers it spaces get inserted.
-    vim.bo[seditorBufferId].expandtab = true
 
     vim.api.nvim_buf_set_lines(seditorBufferId, 0, -1, true, cleanedText)
+
     vim.bo[seditorBufferId].modified = false
 
     local name = getFileBufferName(fileBufferId, seditorBufferId)
