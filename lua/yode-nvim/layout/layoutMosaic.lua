@@ -21,7 +21,7 @@ local createWindowState = R.always({
     height = nil,
     width = nil,
     relative = 'editor',
-    border = nil,
+    border = 'border',
     -- NOTICE: this is col/row from Neovim renamed to be feature ready when yode
     -- windows can be rendered from external GUI without a grid
     x = nil,
@@ -154,18 +154,23 @@ end
 local reducerFunctions = {
     [sharedActions.actionNames.CREATE_FLOATING_WINDOW] = function(state, a)
         local text = vim.api.nvim_buf_get_lines(a.bufId, 0, -1, true)
+        local currentBufTitle = vim.fn.bufname(vim.fn.bufnr())
+
         return h.over(
             windowsLens,
             R.pipe(
-                h.map(h.over(yLens, R.add(#text + 1))),
+                h.map(h.over(yLens, R.add(#text + 2))),
                 R.prepend(R.mergeDeepRight(createWindowState(), {
                     height = #text,
-                    y = 1,
+                    y = 0,
                     bufId = a.bufId,
                     data = {
                         visible = true,
                         initialConfig = {
                             focusable = true,
+                            title = currentBufTitle,
+                            border = 'rounded',
+                            title_pos = 'center'
                         },
                     },
                 })),
@@ -320,7 +325,7 @@ M.stateToNeovim = function(state)
             col = x,
             row = window.y,
             width = width,
-        }, R.pick({ 'relative', 'height', 'border' }, window))
+        }, R.pick({ 'relative', 'height' }, window))
 
         if window.data.visible then
             if window.id == nil then
@@ -328,19 +333,18 @@ M.stateToNeovim = function(state)
                 local id = h.showBufferInFloatingWindow(window.bufId, winConfigFinal)
                 vim.wo[id].winhl = 'FloatBorder:Tabline'
                 vim.cmd('redraw')
-                local statusId, statusBufferId = createStatusBar(id, window.bufId, winConfigFinal)
                 log.debug('created window', id, statusId)
                 return R.pipe(
                     R.assoc('id', id),
-                    R.assoc('statusId', statusId),
-                    R.assoc('statusBufferId', statusBufferId),
                     R.dissocPath({ 'data', 'initialConfig' })
                 )(window)
             else
                 log.debug('updating window', window.id)
+
                 if vim.api.nvim_win_is_valid(window.id) then
                     vim.api.nvim_win_set_config(window.id, winConfig)
                     vim.cmd('redraw')
+
                     if window.id == currentWinId then
                         -- NOTICE this is needed when a dirty tab gets visible, the
                         -- cursor is in a floating window and the height grows. As
@@ -350,19 +354,6 @@ M.stateToNeovim = function(state)
                     end
                 else
                     log.debug('windown not valid!', window.id)
-                end
-
-                if vim.api.nvim_win_is_valid(window.statusId) then
-                    vim.api.nvim_win_set_config(
-                        window.statusId,
-                        createStatusBarWinConfig({
-                            width = winConfig.width + 1,
-                            row = winConfig.height,
-                            win = window.id,
-                        })
-                    )
-                else
-                    log.debug('windown not valid!', window.statusId)
                 end
 
                 return window

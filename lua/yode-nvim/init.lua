@@ -8,7 +8,6 @@ local layout = storeBundle.layout
 local createSeditor = require('yode-nvim.createSeditor')
 local changeSyncing = require('yode-nvim.changeSyncing')
 local testSetup = require('yode-nvim.testSetup')
-local updateFloatStatusLineText = require('yode-nvim.updateFloatStatusLineText')
 
 local M = {
     config = {},
@@ -140,7 +139,7 @@ M.cloneCurrentIntoFloat = function()
     vim.fn.win_gotoid(winId)
 end
 
-M.bufferDelete = function()
+M.bufferDelete = function(winId)
     local log = logging.create('bufferDelete')
     local winId = vim.fn.win_getid()
     local bufId = vim.fn.bufnr('%')
@@ -176,17 +175,22 @@ M.onWindowClosed = function(winId)
         return
     end
 
-    local floatWin = R.head(floatWins)
-    M.tryWinClose(floatWin.statusId)
+    local bufId = vim.api.nvim_win_get_buf(winId)
+
+    -- local floatWin = R.head(floatWins)
+    -- M.tryWinClose(floatWin.statusId)
 
     -- WARNING doing this without schedule breaks the behaviour of deleting a
     -- floating buffer. My best bet is that you can't manipulate other windows
     -- while vim processes a window event?!
+
     vim.schedule(function()
         layout.actions.removeFloatingWindow({
             tabId = vim.api.nvim_get_current_tabpage(),
             winId = winId,
         })
+
+        vim.cmd('bd ' .. bufId)
     end)
 end
 
@@ -253,11 +257,6 @@ M.onOptionSetModifed = function()
     local log = logging.create('onOptionSetModifed')
     local bufId = vim.fn.bufnr('%')
     log.debug(bufId)
-
-    local floatWins = layout.selectors.getWindowBySomeId(false, { bufId = bufId })
-    R.forEach(function(win)
-        updateFloatStatusLineText(bufId, win.statusBufferId)
-    end, floatWins)
 end
 
 M.layoutShiftWinDown = function()
